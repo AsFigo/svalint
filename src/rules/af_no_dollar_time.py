@@ -5,12 +5,29 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class UseRealTimeVsTime(AsFigoLintRule):
-    """Use $realtime than $time in SVA"""
+    """
+    **FUNC_AVOID_DOLLAR_TIME** — Use ``$realtime`` instead of ``$time`` in SVA.
+
+    **Rationale**: ``$time`` returns an integer truncated to simulation time
+    precision, losing sub-precision timing information. ``$realtime`` returns
+    a real-valued time that accurately reflects actual simulation time, which
+    is essential for timing assertions where sub-precision differences matter.
+
+    **Violation**::
+
+        a_timeout: assert property (@(posedge clk)
+            start |-> ($time - t0 < TIMEOUT));
+
+    **Correct usage**::
+
+        a_timeout: assert property (@(posedge clk)
+            start |-> ($realtime - t0 < TIMEOUT));
+
+    **Severity**: ERROR
+    """
 
     def __init__(self, linter):
         self.linter = linter
@@ -29,13 +46,9 @@ class UseRealTimeVsTime(AsFigoLintRule):
                 lvSysTFNameIter = curSysTFName.iter_find_all({"tag": "SystemTFIdentifier"})
                 lvCurSysTFName = next(lvSysTFNameIter)
                 if ('$time' in lvCurSysTFName.text):
-                    message = (
-                        f"FUNC: Found a call to System function $time "
-                        f"inside a SVA property. "
-                        f"Timing checks should be performed using realtime than "
-                        f"$time. See: below discussion to appreciate the rationale: \n"
-                        f"https://verificationacademy.com/forums/t/sva-for-delayed-state-transition-from-fault-id-to-wait-state-100ms-delay/51322 \n"
-                        f"{lvSvaCode}\n"
+                    message = self.formatViolationMessage(
+                        description="'$time' used inside SVA property — returns a truncated integer that loses sub-precision timing information.",
+                        code_snippet=lvSvaCode,
+                        fix_suggestion="Replace '$time' with '$realtime' for accurate real-valued simulation time.",
                     )
-
                     self.linter.logViolation(self.ruleID, message)

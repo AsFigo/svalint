@@ -5,11 +5,26 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 class MissingLabelChk(AsFigoLintRule):
-    """Enhance debug-ability of assertions by using labels """
+    """
+    **ASSERT_MISSING_LABEL** — Assert statements must have a label.
+
+    **Rationale**: Labels on assertions enable targeted waveform search, log
+    filtering, and coverage reporting. Without a label, tracing a failing
+    assertion back to its source in a large design is time-consuming. Most
+    formal and simulation tools can filter and report assertions by label.
+
+    **Violation**::
+
+        assert property (@(posedge clk) req |-> ##[1:3] ack);
+
+    **Correct usage**::
+
+        a_req_ack: assert property (@(posedge clk) req |-> ##[1:3] ack);
+
+    **Severity**: ERROR
+    """
   
     def __init__(self, linter):
         self.linter = linter  # Store the linter instance
@@ -21,9 +36,10 @@ class MissingLabelChk(AsFigoLintRule):
           lvSvaCode = curNode.text
           lvAsrtLabel =  curNode.children[0]
           if (( ":" not in lvAsrtLabel.text)):
-                message = (
-                    f"Error: Missing label for an assert statement.\n"
-                    f"{lvSvaCode}\n"
+                message = self.formatViolationMessage(
+                    description="Assert statement is missing a label.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Add an 'a_' prefixed label: 'a_<name>: assert property ...'",
                 )
                 self.linter.logViolation(self.ruleID, message)
 

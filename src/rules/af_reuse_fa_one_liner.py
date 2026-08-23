@@ -4,11 +4,30 @@
 # SPDX-License-Identifier: MIT
 # ----------------------------------------------------
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 class ReuseNoOneLinerFABLK(AsFigoLintRule):
-    """Action block related checks """
+    """
+    **REUSE_NO_ONE_LINER_FAIL_ABLK** — Fail action block must use ``begin/end``, not a one-liner.
+
+    **Rationale**: A one-liner fail action block cannot be extended without
+    structural refactoring. Using ``begin/end`` from the start allows additional
+    debug statements, coverage increments, or task calls to be added later
+    without changing the block structure, improving long-term reusability.
+
+    **Violation**::
+
+        a_req_ack: assert property (@(posedge clk) req |-> ack)
+            else $error("FAIL");
+
+    **Correct usage**::
+
+        a_req_ack: assert property (@(posedge clk) req |-> ack)
+            else begin
+                $error("FAIL: req=%0b ack=%0b", req, ack);
+            end
+
+    **Severity**: ERROR
+    """
   
     def __init__(self, linter):
         self.linter = linter  # Store the linter instance
@@ -31,12 +50,10 @@ class ReuseNoOneLinerFABLK(AsFigoLintRule):
             lvFablkType = lvAsrtFailAblkNodeNxt.descendants[2]
             lvFablkTypeName = str(lvFablkType)
             if ('[kSeqBlock]' not in lvFablkTypeName):
-                message = (
-                    f"REUSE: Found an one-liner fail action block in assert statement.\n"
-                    f"Impacts reusability of this code as the error reporting "
-                    f"This limits reusability, since future extensions or "
-                    f"additional actions cannot be added to the block.\n"
-                    f"{lvSvaCode}\n"
+                message = self.formatViolationMessage(
+                    description="Fail action block is a one-liner — cannot be extended without structural refactoring.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Wrap the fail action in 'begin/end': 'else begin $error(...); end'",
                 )
                 self.linter.logViolation(self.ruleID, message)
 

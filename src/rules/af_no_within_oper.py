@@ -5,42 +5,44 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class NoWithinOperInAsrt(AsFigoLintRule):
     """
-    From book: https://payhip.com/b/7HvMk
-    by @hdlcohen
-    Avoid within operator in SVA
-    Note: The within is a sequence operator. It is introduced
-    here due to its popularity; however, its usage can be
-    misleading. For reasons explained below, I recommend
-    avoiding the within operator.
+    **STYLE_AVOID_WITHIN_A** — Avoid the ``within`` sequence operator in SVA.
+
+    **Rationale**: The ``within`` operator, while part of the LRM, has misleading
+    semantics that frequently cause incorrect assertion intent. Its interaction
+    with threading and overlap semantics is non-intuitive, leading to assertions
+    that appear correct but check something different from what was intended.
+    Explicit sequence composition using ``##`` and repetition operators is clearer
+    and more portable.
+
+    **Violation**::
+
+        a_ack: assert property (@(posedge clk)
+            (req ##1 ack) within (start ##[1:10] stop));
+
+    **Correct usage**: Express the temporal relationship explicitly using ``##``
+    delays and repetition without relying on ``within``.
+
+    **Severity**: ERROR
+
+    **References**: Ben Cohen, *SVA Handbook* https://payhip.com/b/7HvMk
     """
 
     def __init__(self, linter):
         self.linter = linter
-        # Store the linter instance
         self.ruleID = "STYLE_AVOID_WITHIN_A"
 
     def apply(self, filePath: str, data: AsFigoLintRule.VeribleSyntax.SyntaxData):
-        lvMsg = (
-            f"From book: https://payhip.com/b/7HvMk\n"
-            f"by @hdlcohen\n"
-            f"Avoid within operator in SVA\n"
-            f"Note: The within is a sequence operator. It is introduced\n"
-            f"here due to its popularity; however, its usage can be \n"
-            f"misleading. For reasons explained below, I recommend \n"
-            f"avoiding the within operator."
-        )
-
         for curNode in data.tree.iter_find_all({"tag": "kAssertionItem"}):
             lvSvaCode = curNode.text
-            lvWithinG = curNode.iter_find_all({"tag": "within"})
-            lvWithinList = list(lvWithinG)
+            lvWithinList = list(curNode.iter_find_all({"tag": "within"}))
             if len(lvWithinList) > 0:
-                message = f"{lvMsg}\n" f"{lvSvaCode}\n"
-
+                message = self.formatViolationMessage(
+                    description="'within' sequence operator found in SVA — semantics are non-intuitive and frequently cause incorrect assertion intent.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Express the temporal relationship explicitly using '##' delays and repetition operators.",
+                )
                 self.linter.logViolation(self.ruleID, message)

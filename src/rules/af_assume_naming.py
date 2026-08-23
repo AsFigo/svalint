@@ -6,11 +6,25 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 class AssumeNaming(AsFigoLintRule):
-    """Checks if assume follows a naming convention - start with "m_" """
+    """
+    **ASSUME_NAMING** — Assume label must start with ``m_``.
+
+    **Rationale**: The ``m_`` prefix (model/assume) distinguishes constraint
+    assumptions from assertions (``a_``) and coverage (``c_``) in formal tool
+    reports and log files, making intent immediately clear during review.
+
+    **Violation**::
+
+        req_stable: assume property (@(posedge clk) $stable(req));
+
+    **Correct usage**::
+
+        m_req_stable: assume property (@(posedge clk) $stable(req));
+
+    **Severity**: WARNING
+    """
 
     def __init__(self, linter):
         self.linter = linter
@@ -28,12 +42,10 @@ class AssumeNaming(AsFigoLintRule):
                 continue
 
             if not lvLabel.startswith("m_"):
-                message = (
-                    f"Debug: Found assume name without m_ prefix. "
-                    f"Use m_ as assume prefix. This helps users to "
-                    f"look for specific patterns in their log files. "
-                    f"Found an Assume as:\n"
-                    f"{curNode.text}\n"
+                message = self.formatViolationMessage(
+                    description=f"Assume label '{lvLabel}' must start with 'm_' prefix.",
+                    code_snippet=curNode.text,
+                    fix_suggestion="Rename label to 'm_<name>' (e.g., 'm_req_stable').",
                 )
                 self.linter.logViolation(self.ruleID, message, "WARNING")
         

@@ -6,11 +6,25 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 class CoverNaming(AsFigoLintRule):
-    """Checks if cover follows a naming convention - start with "c_" """
+    """
+    **COVER_NAMING** — Cover label must start with ``c_``.
+
+    **Rationale**: A consistent ``c_`` prefix on cover directives distinguishes
+    coverage intent from assertions (``a_``) and assumptions (``m_``) when
+    reviewing formal reachability reports and simulation coverage logs.
+
+    **Violation**::
+
+        req_seen: cover property (@(posedge clk) req);
+
+    **Correct usage**::
+
+        c_req_seen: cover property (@(posedge clk) req);
+
+    **Severity**: WARNING
+    """
 
     def __init__(self, linter):
         self.linter = linter
@@ -28,12 +42,10 @@ class CoverNaming(AsFigoLintRule):
                 continue
 
             if not lvLabel.startswith("c_"):
-                message = (
-                    f"Debug: Found cover name without c_ prefix. "
-                    f"Use c_ as cover prefix. This helps users to "
-                    f"look for specific patterns in their log files. "
-                    f"Found a cover as:\n"
-                    f"{curNode.text}\n"
+                message = self.formatViolationMessage(
+                    description=f"Cover label '{lvLabel}' must start with 'c_' prefix.",
+                    code_snippet=curNode.text,
+                    fix_suggestion="Rename label to 'c_<name>' (e.g., 'c_req_seen').",
                 )
                 self.linter.logViolation(self.ruleID, message, "WARNING")
         

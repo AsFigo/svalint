@@ -5,40 +5,43 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class NoFirstMatchOperInAsrt(AsFigoLintRule):
-    lvMsg = """
-    From book: https://payhip.com/b/7HvMk
-    by @hdlcohen
-    NOTE: Experts often discourage using first_match() in formal verification; it is acceptable in simulation.
-The first_match() function in SVA can be problematic for formal verification for several reasons:
+    """
+    **STYLE_AVOID_FIRST_MATCH_A** — Avoid ``first_match()`` in SVA for formal verification.
 
-Performance Impact
-The first_match() creates multiple concurrent threads that the tool must evaluate, potentially
-leading to state-space explosion.
-Complexity
-The first_match() adds complexity to assertions, making them more difficult to understand and
-maintain. This complexity can obscure the intent of the assertion and make debugging more
-challenging.
-By avoiding and opting for clearer, more direct assertions, you can improve the effectiveness of formal
-verification efforts and make your assertions more robust and maintainable.
+    **Rationale**: ``first_match()`` creates multiple concurrent threads that
+    formal tools must evaluate simultaneously, potentially causing state-space
+    explosion and degraded performance. It also adds complexity that makes
+    failures harder to debug. While acceptable in simulation, it is generally
+    discouraged for formal analysis.
+
+    **Violation**::
+
+        a_req: assert property (@(posedge clk)
+            first_match(req ##[1:5] ack) |-> done);
+
+    **Correct usage**: Restructure using deterministic timing or goto repetition
+    to eliminate the need for ``first_match``.
+
+    **Severity**: ERROR
+
+    **References**: Ben Cohen, *SVA Handbook* https://payhip.com/b/7HvMk
     """
 
     def __init__(self, linter):
         self.linter = linter
-        # Store the linter instance
         self.ruleID = "STYLE_AVOID_FIRST_MATCH_A"
 
     def apply(self, filePath: str, data: AsFigoLintRule.VeribleSyntax.SyntaxData):
-
         for curNode in data.tree.iter_find_all({"tag": "kAssertionItem"}):
             lvSvaCode = curNode.text
-            lvFirstMatchG = curNode.iter_find_all({"tag": "first_match"})
-            lvFirstMatchList = list(lvFirstMatchG)
+            lvFirstMatchList = list(curNode.iter_find_all({"tag": "first_match"}))
             if len(lvFirstMatchList) > 0:
-                message = f"{self.lvMsg}\n" f"{lvSvaCode}\n"
-
+                message = self.formatViolationMessage(
+                    description="'first_match()' found in SVA — creates multiple concurrent threads, causing state-space explosion in formal tools.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Restructure using deterministic timing or goto repetition '[->1]' to eliminate 'first_match'.",
+                )
                 self.linter.logViolation(self.ruleID, message)
