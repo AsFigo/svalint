@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT
 # ----------------------------------------------------
 import logging
+import textwrap
 import verible_verilog_syntax
 from abc import ABC, abstractmethod
 
@@ -15,12 +16,8 @@ class AsFigoLintRule(ABC):
 
     
     def __init__(self, linter):
-        self.linter = linter  # Store the linter instance
+        self.linter = linter
         self.ruleID = 'SVALintDefaultRuleID'
-        '''
-        if not hasattr(self, "ruleID"):  # Ensure ruleID exists in subclasses
-            raise ValueError(f"{self.__class__.__name__} must define a `ruleID` attribute!")
-        '''
 
 
     @classmethod
@@ -45,6 +42,28 @@ class AsFigoLintRule(ABC):
         for qualList in varNode.iter_find_all({"tag": "kQualifierList"}):
             qualifiers.update(qualList.text.split())  # Extract words
         return qualifiers
+
+    def formatViolationMessage(
+        self,
+        description: str,
+        code_snippet: str = None,
+        fix_suggestion: str = None,
+    ) -> str:
+        """
+        Pretty-formats a linter violation with structured layout and indented code blocks.
+        """
+        lines = []
+        if description:
+            lines.append(f"  = Description: {description}")
+        if code_snippet:
+            snippet_clean = textwrap.dedent(code_snippet.strip())
+            lines.append("   |")
+            for line in snippet_clean.splitlines():
+                lines.append(f"   | {line}")
+            lines.append("   |")
+        if fix_suggestion:
+            lines.append(f"  = Fix: {fix_suggestion}")
+        return "\n".join(lines)
 
     def run(self, filePath: str, data: verible_verilog_syntax.SyntaxData):
         """Wrapper method to automatically count and apply the rule."""

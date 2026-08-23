@@ -5,23 +5,34 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class UseSimpleExprConseq(AsFigoLintRule):
-    lvMsg = """
+    """
+    **DBG_USE_SIMPLE_EXPR_IN_CONSEQ** — Avoid complex consequent expressions; prefer multiple simple properties.
 
-  Found complex consequent expression inside a property definition. 
-  It is highly recommended to use many simple propertie than a 
-  monolithic, complex one. This helps in debug as the failures can 
-  spot specific signal/expression failing. 
+    **Rationale**: A property with multiple implication operators or a consequent
+    containing more than two ``&&`` expressions is difficult to debug when it
+    fails — the failing sub-expression is not immediately obvious from the error
+    report. Splitting into smaller properties lets the tool pinpoint exactly which
+    condition failed.
 
+    **Violation**::
+
+        p_complex: property (@(posedge clk)
+            req |-> ack && data_valid && !err && count > 0);
+
+    **Correct usage**::
+
+        p_ack:   assert property (@(posedge clk) req |-> ack);
+        p_valid: assert property (@(posedge clk) req |-> data_valid);
+        p_noerr: assert property (@(posedge clk) req |-> !err);
+
+    **Severity**: ERROR
     """
 
     def __init__(self, linter):
         self.linter = linter
-        # Store the linter instance
         self.ruleID = "DBG_USE_SIMPLE_EXPR_IN_CONSEQ"
 
     def apply(self, filePath: str, data: AsFigoLintRule.VeribleSyntax.SyntaxData):
@@ -31,15 +42,22 @@ class UseSimpleExprConseq(AsFigoLintRule):
             lvNumOlapOper = len(list(curNode.iter_find_all({"tag": "|->"})))
             lvNumNonOlapOper = len(list(curNode.iter_find_all({"tag": "|=>"})))
 
-            if (lvNumOlapOper + lvNumNonOlapOper  > 1):
-                message = f"{self.lvMsg}\n" f"{lvSvaCode}\n"
+            if (lvNumOlapOper + lvNumNonOlapOper > 1):
+                message = self.formatViolationMessage(
+                    description="Property has multiple implication operators — complex consequent makes failure diagnosis difficult.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Split into multiple simple properties, one condition per property.",
+                )
                 self.linter.logViolation(self.ruleID, message)
                 continue
 
             for lvOlapImplNode in curNode.iter_find_all({"tag": "|->"}):
                 lvConseqNode = lvOlapImplNode.siblings[1]
-                lvConseqExprANDG = lvConseqNode.iter_find_all({"tag": "&&"})
-                lvNumANDinConseq = len(list(lvConseqExprANDG))
+                lvNumANDinConseq = len(list(lvConseqNode.iter_find_all({"tag": "&&"})))
                 if (lvNumANDinConseq > 2):
-                    message = f"{self.lvMsg}\n" f"{lvSvaCode}\n"
+                    message = self.formatViolationMessage(
+                        description=f"Consequent has {lvNumANDinConseq} '&&' conditions — too complex to pinpoint the failing sub-expression.",
+                        code_snippet=lvSvaCode,
+                        fix_suggestion="Split into multiple simple properties, one condition per property.",
+                    )
                     self.linter.logViolation(self.ruleID, message)

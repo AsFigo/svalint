@@ -5,12 +5,30 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class NoExplTimeLiterals(AsFigoLintRule):
-    """Avoid explicit time literals in SVA"""
+    """
+    **REUSE_NO_TIMELITERAL** — Avoid explicit time literals in SVA property declarations.
+
+    **Rationale**: Hard-coded time values (e.g., ``10ns``, ``100ps``) in SVA make
+    properties non-reusable across designs with different clock frequencies or
+    timing budgets. Use parameters or `` `define`` macros so timing can be
+    adjusted without modifying the assertion source.
+
+    **Violation**::
+
+        p_timeout: property (@(posedge clk)
+            start |-> done within 100ns);
+
+    **Correct usage**::
+
+        parameter TIMEOUT_CYCLES = 20;
+        p_timeout: property (@(posedge clk)
+            start |-> ##[1:TIMEOUT_CYCLES] done);
+
+    **Severity**: ERROR
+    """
 
     def __init__(self, linter):
         self.linter = linter
@@ -27,11 +45,9 @@ class NoExplTimeLiterals(AsFigoLintRule):
             lvTimeLiteralG = curNode.iter_find_all({"tag": "TK_TimeLiteral"})
             lvTimeLiteralList = list(lvTimeLiteralG)
             if len(lvTimeLiteralList) > 0:
-                message = (
-                    f"REUSE: Found an Explicit Time Literal in a property "
-                    f"declaration. Avoid explicit values, use parameters or "
-                    f"`define-s instead\n"
-                    f"{lvSvaCode}\n"
+                message = self.formatViolationMessage(
+                    description="Explicit time literal (e.g., '100ns') found in property — prevents reuse across designs with different timing budgets.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Replace the literal with a parameter or '`define' macro.",
                 )
-
                 self.linter.logViolation(self.ruleID, message)

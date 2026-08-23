@@ -5,12 +5,30 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class MissingEndLblSEQ(AsFigoLintRule):
-    """Checks for missing end-labels in seqeunce """
+    """
+    **DBG_MISS_END_LBL_SEQ** — Sequence declaration must have an end-label.
+
+    **Rationale**: End-labels (e.g., ``endsequence: s_my_seq``) visually bracket
+    the sequence body and improve navigability in large files. They are especially
+    valuable in deeply nested or multi-line sequence definitions.
+
+    **Violation**::
+
+        sequence s_req_rise;
+            @(posedge clk) ##1 $rose(req);
+        endsequence
+
+    **Correct usage**::
+
+        sequence s_req_rise;
+            @(posedge clk) ##1 $rose(req);
+        endsequence: s_req_rise
+
+    **Severity**: ERROR
+    """
 
     def __init__(self, linter):
         self.linter = linter
@@ -25,10 +43,9 @@ class MissingEndLblSEQ(AsFigoLintRule):
             lvSvaCode = curNode.text
             lvLastElem = curNode.descendants[-1]
             if (not lvLastElem.text):
-                message = (
-                    f"Debug: Found a SEQ without endlabel. Use of endlabels "
-                    f"greatly enhances debug and increases productivity\n"
-                    f"{lvSvaCode}\n"
+                message = self.formatViolationMessage(
+                    description="Sequence declaration is missing an end-label.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Add 'endsequence: <name>' to close the sequence declaration.",
                 )
-
                 self.linter.logViolation(self.ruleID, message)

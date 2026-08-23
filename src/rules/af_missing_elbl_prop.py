@@ -5,12 +5,31 @@
 # ----------------------------------------------------
 
 from af_lint_rule import AsFigoLintRule
-import logging
-import anytree
 
 
 class MissingEndLblProp(AsFigoLintRule):
-    """Checks for missing end-labels in property """
+    """
+    **DBG_MISS_END_LBL_PROP** — Property declaration must have an end-label.
+
+    **Rationale**: End-labels (e.g., ``endproperty: p_my_prop``) create a visual
+    bracket around the property body, making it easier to identify boundaries in
+    large files and enabling consistent navigation in editors. They are especially
+    valuable when properties span many lines.
+
+    **Violation**::
+
+        property p_req_ack;
+            @(posedge clk) req |-> ##[1:3] ack;
+        endproperty
+
+    **Correct usage**::
+
+        property p_req_ack;
+            @(posedge clk) req |-> ##[1:3] ack;
+        endproperty: p_req_ack
+
+    **Severity**: ERROR
+    """
 
     def __init__(self, linter):
         self.linter = linter
@@ -25,10 +44,9 @@ class MissingEndLblProp(AsFigoLintRule):
             lvSvaCode = curNode.text
             lvLastElem = curNode.descendants[-1]
             if (not lvLastElem.text):
-                message = (
-                    f"Debug: Found a property without endlabel. Use of endlabels "
-                    f"greatly enhances debug and increases productivity\n"
-                    f"{lvSvaCode}\n"
+                message = self.formatViolationMessage(
+                    description="Property declaration is missing an end-label.",
+                    code_snippet=lvSvaCode,
+                    fix_suggestion="Add 'endproperty: <name>' to close the property declaration.",
                 )
-
                 self.linter.logViolation(self.ruleID, message)

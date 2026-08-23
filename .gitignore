@@ -1,0 +1,21 @@
+# Vim swap files
+*.swp
+*.swo
+*.swx
+.*.swp
+
+# Backup files
+*~
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Log files
+*.log
+
+# Sphinx build output
+docs/build/
+
+# Claude session files
+.claude/
